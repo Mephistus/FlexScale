@@ -87,7 +87,8 @@ def render_with_heart_sprite(
     target_x = width // 2
     hits = sorted({hit for hit, _ in chart})
     note_labels = [f"n{index}" for index in range(len(hits))]
-    outline_label = f"v{len(hits) + 1}"
+    outline_label = "v1"
+    hit_label = "v2"
     final_label = f"v{len(hits) + 2}"
     graph = [
         f"[0:v]subtitles=filename={make_rhythm_hud.filter_path(ass_path)}[base];",
@@ -99,12 +100,25 @@ def render_with_heart_sprite(
         f"[base][target]overlay=x='{target_x}-w/2':y='{track_y}-h/2':shortest=1:eof_action=pass[v0];",
     ]
 
-    previous = "v0"
+    hit_windows = "+".join(
+        f"(gte(t\\,{hit:.4f})*lte(t\\,{min(duration, hit + 0.12):.4f}))"
+        for hit in hits
+    )
+    graph.append(
+        f"[v0][hit_outline]overlay=x='{target_x}-w/2':y='{track_y}-h/2':shortest=1:eof_action=pass:"
+        f"enable='{hit_windows}'[{outline_label}];"
+    )
+    graph.append(
+        f"[{outline_label}][hit]overlay=x='{target_x}-w/2':y='{track_y}-h/2':shortest=1:eof_action=pass:"
+        f"enable='{hit_windows}'[{hit_label}];"
+    )
+
+    previous = hit_label
     for index, hit in enumerate(hits):
         progress = hit / duration
         travel = 3.20 - 1.00 * progress
         start = max(0.0, hit - travel)
-        label = f"v{index + 1}"
+        label = f"v{index + 3}"
         x_expression = f"{width}+{px(22)}-w/2-({width}+{px(22)}-{target_x})*(t-{start:.4f})/{travel:.4f}"
         graph.append(
             f"[{previous}][{note_labels[index]}]overlay="
@@ -113,18 +127,6 @@ def render_with_heart_sprite(
         )
         previous = label
 
-    hit_windows = "+".join(
-        f"(gte(t\\,{hit:.4f})*lte(t\\,{min(duration, hit + 0.12):.4f}))"
-        for hit in hits
-    )
-    graph.append(
-        f"[{previous}][hit_outline]overlay=x='{target_x}-w/2':y='{track_y}-h/2':shortest=1:eof_action=pass:"
-        f"enable='{hit_windows}'[{outline_label}];"
-    )
-    graph.append(
-        f"[{outline_label}][hit]overlay=x='{target_x}-w/2':y='{track_y}-h/2':shortest=1:eof_action=pass:"
-        f"enable='{hit_windows}'[{final_label}];"
-    )
 
     filter_script.parent.mkdir(parents=True, exist_ok=True)
     filter_script.write_text("\n".join(graph), encoding="utf-8")
