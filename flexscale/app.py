@@ -167,7 +167,10 @@ class FlexScaleApp:
         self.offset_ms = tk.StringVar(value="0")
         self.offset_entry = ttk.Entry(offset_row, textvariable=self.offset_ms, width=10)
         self.offset_entry.pack(side="left", padx=(8, 8))
-        ttk.Label(offset_row, text="0 = default, + delays, - starts earlier").pack(side="left")
+        ttk.Label(
+            offset_row,
+            text="Instruction: positive = delay hearts; negative = start hearts earlier",
+        ).pack(side="left")
 
         self.progress_value = tk.DoubleVar(value=0)
         self.progress = ttk.Progressbar(generate_tab, variable=self.progress_value, maximum=100)
