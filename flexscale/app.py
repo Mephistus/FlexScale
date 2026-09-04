@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ctypes
 import math
 import os
 import queue
@@ -16,6 +17,136 @@ from . import renderer, rhythm_hud, sheet_recorder
 
 
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv", ".avi", ".webm", ".m4v"}
+
+
+class WindowsTaskbarProgress:
+    """Mirror render progress in the Windows taskbar button."""
+
+    _TBPF_NOPROGRESS = 0
+    _TBPF_NORMAL = 2
+    _CLSID_TASKBAR_LIST = "56FDF344-FD6D-11D0-958A-006097C9A090"
+    _IID_TASKBAR_LIST3 = "EA1AFB91-9E28-4B86-90E9-9E9F8A5EEA84"
+
+    class _Guid(ctypes.Structure):
+        _fields_ = [
+            ("data1", ctypes.c_uint32),
+            ("data2", ctypes.c_uint16),
+            ("data3", ctypes.c_uint16),
+            ("data4", ctypes.c_ubyte * 8),
+        ]
+
+    @classmethod
+    def _guid(cls, value: str) -> "WindowsTaskbarProgress._Guid":
+        raw = uuid.UUID(value).bytes_le
+        return cls._Guid.from_buffer_copy(raw)
+
+    def __init__(self, window: tk.Tk) -> None:
+        self._ole32 = None
+        self._interface = ctypes.c_void_p()
+        self._vtable = None
+        self._hwnd = ctypes.c_void_p(window.winfo_id())
+        self._com_owned = False
+        self._available = False
+        if sys.platform != "win32":
+            return
+        try:
+            self._ole32 = ctypes.windll.ole32
+            self._ole32.CoInitializeEx.restype = ctypes.c_long
+            init_result = int(self._ole32.CoInitializeEx(None, 0x2))
+            if init_result in (0, 1):
+                self._com_owned = True
+            elif init_result != -2147417850:  # RPC_E_CHANGED_MODE
+                self.close()
+                return
+
+            clsid = self._guid(self._CLSID_TASKBAR_LIST)
+            iid = self._guid(self._IID_TASKBAR_LIST3)
+            self._ole32.CoCreateInstance.restype = ctypes.c_long
+            self._ole32.CoCreateInstance.argtypes = [
+                ctypes.POINTER(self._Guid),
+                ctypes.c_void_p,
+                ctypes.c_uint32,
+                ctypes.POINTER(self._Guid),
+                ctypes.POINTER(ctypes.c_void_p),
+            ]
+            result = int(
+                self._ole32.CoCreateInstance(
+                    ctypes.byref(clsid),
+                    None,
+                    1,  # CLSCTX_INPROC_SERVER
+                    ctypes.byref(iid),
+                    ctypes.byref(self._interface),
+                )
+            )
+            if result < 0 or not self._interface.value:
+                self.close()
+                return
+            self._vtable = ctypes.cast(
+                self._interface,
+                ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p)),
+            ).contents
+            if self._call(3, ctypes.c_long, []) < 0:  # ITaskbarList::HrInit
+                self.close()
+                return
+            self._available = True
+        except (AttributeError, OSError, TypeError):
+            self.close()
+
+    def _call(self, index: int, result_type: object, argument_types: list[object], *args: object) -> int:
+        if self._vtable is None:
+            return 0
+        function = ctypes.WINFUNCTYPE(result_type, ctypes.c_void_p, *argument_types)(self._vtable[index])
+        return int(function(self._interface, *args))
+
+    def set_progress(self, fraction: float) -> None:
+        if not self._available:
+            return
+        value = max(0, min(1000, round(fraction * 1000)))
+        try:
+            self._call(
+                10,
+                ctypes.c_long,
+                [ctypes.c_void_p, ctypes.c_uint],
+                self._hwnd,
+                self._TBPF_NORMAL,
+            )
+            self._call(
+                9,
+                ctypes.c_long,
+                [ctypes.c_void_p, ctypes.c_ulonglong, ctypes.c_ulonglong],
+                self._hwnd,
+                value,
+                1000,
+            )
+        except (OSError, TypeError):
+            self._available = False
+
+    def clear(self) -> None:
+        if not self._available:
+            return
+        try:
+            self._call(
+                10,
+                ctypes.c_long,
+                [ctypes.c_void_p, ctypes.c_uint],
+                self._hwnd,
+                self._TBPF_NOPROGRESS,
+            )
+        except (OSError, TypeError):
+            self._available = False
+
+    def close(self) -> None:
+        if self._interface.value and self._vtable is not None:
+            try:
+                self._call(2, ctypes.c_ulong, [])  # IUnknown::Release
+            except (OSError, TypeError):
+                pass
+        self._interface = ctypes.c_void_p()
+        self._vtable = None
+        self._available = False
+        if self._com_owned and self._ole32 is not None:
+            self._ole32.CoUninitialize()
+        self._com_owned = False
 
 
 def application_root() -> Path:
@@ -218,6 +349,7 @@ class FlexScaleApp:
         ttk.Button(sheet_buttons, text="Save Sheet", command=self.save_sheet).pack(side="left", padx=(8, 0))
         ttk.Button(sheet_buttons, text="Close", command=self.request_close).pack(side="right")
 
+        self.taskbar_progress = WindowsTaskbarProgress(window)
         self.entry.focus_set()
         if sys.platform != "win32":
             key_map = {
@@ -245,6 +377,10 @@ class FlexScaleApp:
         self.ok_button.configure(state=state)
         self.offset_entry.configure(state=state)
         self.cancel_button.configure(state="normal" if running else "disabled")
+        if running:
+            self.taskbar_progress.set_progress(0.0)
+        else:
+            self.taskbar_progress.clear()
 
     def start(self) -> None:
         if self.running:
@@ -446,6 +582,7 @@ class FlexScaleApp:
     def shutdown(self) -> None:
         self.sheet_recorder.deactivate()
         self.sheet_hook.close()
+        self.taskbar_progress.close()
         self.window.destroy()
 
     def process_sheet_events(self) -> None:
@@ -469,11 +606,13 @@ class FlexScaleApp:
                 if kind == "progress":
                     percent = float(value)
                     self.progress_value.set(percent)
+                    self.taskbar_progress.set_progress(percent / 100.0)
                     self.status.set(f"Rendering... {percent:.0f}%")
                 elif kind == "status":
                     self.status.set(str(value))
                 elif kind == "complete":
                     self.progress_value.set(100)
+                    self.taskbar_progress.set_progress(1.0)
                     self.status.set(f"Completed: {Path(value).name}")
                     self.set_running(False)
                     messagebox.showinfo(

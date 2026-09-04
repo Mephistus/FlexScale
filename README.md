@@ -15,6 +15,9 @@ before they are replaced.
 Outputs are never overwritten. For example, repeated renders of `video.mp4`
 produce `video.mp4`, `video_2.mp4`, `video_3.mp4`, and so on.
 
+On Windows, the render progress is also shown on the application's taskbar
+button.
+
 Every generated chart applies a 200 ms early-hit timing correction. The
 **Generate Video** tab includes an optional offset adjustment in milliseconds:
 `0` keeps that default timing, positive values delay the hearts, and negative
