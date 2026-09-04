@@ -300,7 +300,7 @@ class FlexScaleApp:
         self.offset_entry.pack(side="left", padx=(8, 8))
         ttk.Label(
             offset_row,
-            text="Instruction: positive = delay hearts; negative = start hearts earlier",
+            text="Instruction: positive = delay notes; negative = start notes earlier",
         ).pack(side="left")
 
         self.progress_value = tk.DoubleVar(value=0)

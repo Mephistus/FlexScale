@@ -20,7 +20,7 @@ button.
 
 Every generated chart applies a 200 ms early-hit timing correction. The
 **Generate Video** tab includes an optional offset adjustment in milliseconds:
-`0` keeps that default timing, positive values delay the hearts, and negative
+`0` keeps that default timing, positive values delay the notes, and negative
 values make them start earlier. The center icon is white at rest and becomes
 purple with a white outline on each beat.
 
