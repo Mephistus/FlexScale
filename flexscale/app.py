@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import os
 import queue
 import sys
@@ -160,6 +161,14 @@ class FlexScaleApp:
         self.ok_button.pack(side="left", padx=(10, 0))
         self.entry.bind("<Return>", lambda _event: self.start())
 
+        offset_row = ttk.Frame(generate_tab)
+        offset_row.pack(fill="x", pady=(10, 0))
+        ttk.Label(offset_row, text="Offset adjustment (ms, optional):").pack(side="left")
+        self.offset_ms = tk.StringVar(value="0")
+        self.offset_entry = ttk.Entry(offset_row, textvariable=self.offset_ms, width=10)
+        self.offset_entry.pack(side="left", padx=(8, 8))
+        ttk.Label(offset_row, text="0 = default, + delays, - starts earlier").pack(side="left")
+
         self.progress_value = tk.DoubleVar(value=0)
         self.progress = ttk.Progressbar(generate_tab, variable=self.progress_value, maximum=100)
         self.progress.pack(fill="x", pady=(20, 5))
@@ -231,6 +240,7 @@ class FlexScaleApp:
         state = "disabled" if running else "normal"
         self.entry.configure(state=state)
         self.ok_button.configure(state=state)
+        self.offset_entry.configure(state=state)
         self.cancel_button.configure(state="normal" if running else "disabled")
 
     def start(self) -> None:
@@ -244,6 +254,19 @@ class FlexScaleApp:
             )
             return
         name = self.video_name.get()
+        offset_text = self.offset_ms.get().strip()
+        try:
+            offset_adjustment_ms = float(offset_text) if offset_text else 0.0
+            if not math.isfinite(offset_adjustment_ms):
+                raise ValueError
+        except ValueError:
+            messagebox.showerror(
+                "Invalid offset",
+                "Offset must be a number in milliseconds, or left empty.",
+                parent=self.window,
+            )
+            return
+        offset_seconds = renderer.DEFAULT_HIT_OFFSET_SECONDS + offset_adjustment_ms / 1000.0
         try:
             video_path = find_video(self.root_dir / "input", name)
             sheet_path = find_sheet(self.root_dir / "guiding_sheets", video_path.stem)
@@ -259,7 +282,7 @@ class FlexScaleApp:
         self.set_running(True)
         self.worker = threading.Thread(
             target=self.render_worker,
-            args=(video_path, sheet_path, output_path, lock_path),
+            args=(video_path, sheet_path, output_path, lock_path, offset_seconds),
             daemon=True,
         )
         self.worker.start()
@@ -270,6 +293,7 @@ class FlexScaleApp:
         sheet_path: Path,
         output_path: Path,
         lock_path: Path,
+        offset_seconds: float,
     ) -> None:
         temporary_path = output_path.parent / f".{output_path.stem}.{uuid.uuid4().hex}.part.mp4"
         try:
@@ -285,6 +309,7 @@ class FlexScaleApp:
                 output_path=temporary_path,
                 work_dir=self.root_dir / ".work",
                 heart_path=heart_path,
+                offset_seconds=offset_seconds,
                 progress_callback=report,
                 cancel_event=self.cancel_event,
             )

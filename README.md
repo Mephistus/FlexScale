@@ -15,8 +15,11 @@ before they are replaced.
 Outputs are never overwritten. For example, repeated renders of `video.mp4`
 produce `video.mp4`, `video_2.mp4`, `video_3.mp4`, and so on.
 
-Every generated chart applies a 200 ms early-hit timing correction. The center
-icon is white at rest and becomes purple with a white outline on each beat.
+Every generated chart applies a 200 ms early-hit timing correction. The
+**Generate Video** tab includes an optional offset adjustment in milliseconds:
+`0` keeps that default timing, positive values delay the hearts, and negative
+values make them start earlier. The center icon is white at rest and becomes
+purple with a white outline on each beat.
 
 ## Custom icon
 

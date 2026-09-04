@@ -159,6 +159,7 @@ def render_rhythm_video(
     heart_path: Path | None = None,
     progress_callback: Callable[[float], None] | None = None,
     cancel_event: threading.Event | None = None,
+    offset_seconds: float = DEFAULT_HIT_OFFSET_SECONDS,
 ) -> None:
     """Render one matched video/sheet pair to an explicitly selected output."""
     if cancel_event is not None and cancel_event.is_set():
@@ -168,9 +169,9 @@ def render_rhythm_video(
     if bpm:
         chart = quantize_events(chart, bpm, 0.0)
     chart = [
-        (hit + DEFAULT_HIT_OFFSET_SECONDS, lane)
+        (hit + offset_seconds, lane)
         for hit, lane in chart
-        if 0.0 <= hit + DEFAULT_HIT_OFFSET_SECONDS < duration - 0.25
+        if 0.0 <= hit + offset_seconds < duration - 0.25
     ]
     if not chart:
         raise ValueError(f"The guiding sheet contains no usable events: {sheet_path.name}")
