@@ -25,7 +25,7 @@ class WindowsTaskbarProgress:
     _TBPF_NOPROGRESS = 0
     _TBPF_NORMAL = 2
     _CLSID_TASKBAR_LIST = "56FDF344-FD6D-11D0-958A-006097C9A090"
-    _IID_TASKBAR_LIST3 = "EA1AFB91-9E28-4B86-90E9-9E9F8A5EEA84"
+    _IID_TASKBAR_LIST3 = "EA1AFB91-9E28-4B86-90E9-9E9F8A5EEFAF"
 
     class _Guid(ctypes.Structure):
         _fields_ = [
@@ -60,7 +60,7 @@ class WindowsTaskbarProgress:
                 return
 
             clsid = self._guid(self._CLSID_TASKBAR_LIST)
-            iid = self._guid(self._IID_TASKBAR_LIST3)
+            progress_iid = self._guid(self._IID_TASKBAR_LIST3)
             self._ole32.CoCreateInstance.restype = ctypes.c_long
             self._ole32.CoCreateInstance.argtypes = [
                 ctypes.POINTER(self._Guid),
@@ -74,7 +74,7 @@ class WindowsTaskbarProgress:
                     ctypes.byref(clsid),
                     None,
                     1,  # CLSCTX_INPROC_SERVER
-                    ctypes.byref(iid),
+                    ctypes.byref(progress_iid),
                     ctypes.byref(self._interface),
                 )
             )
