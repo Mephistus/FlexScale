@@ -3,6 +3,7 @@
 
 assets/*
 !assets/.gitkeep
+!assets/note.png
 
 output/*
 !output/.gitkeep

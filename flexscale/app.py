@@ -278,7 +278,7 @@ class FlexScaleApp:
             def report(value: float) -> None:
                 self.events.put(("progress", 5.0 + value * 95.0))
 
-            heart_path = bundled_asset("assets/heart_note_reference.png", self.root_dir)
+            heart_path = bundled_asset("assets/note.png", self.root_dir)
             renderer.render_rhythm_video(
                 video_path=video_path,
                 sheet_path=sheet_path,

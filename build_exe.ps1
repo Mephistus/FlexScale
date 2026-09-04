@@ -24,7 +24,7 @@ try {
         --add-binary "$ffmpeg;." `
         --add-binary "$ffprobe;." `
         --add-binary "$ffplay;." `
-        --add-data "assets/heart_note_reference.png;assets" `
+        --add-data "assets/note.png;assets" `
         main.py
     if ($LASTEXITCODE -ne 0) {
         throw "PyInstaller failed with exit code $LASTEXITCODE"

@@ -16,7 +16,15 @@ Outputs are never overwritten. For example, repeated renders of `video.mp4`
 produce `video.mp4`, `video_2.mp4`, `video_3.mp4`, and so on.
 
 Every generated chart applies a 200 ms early-hit timing correction. The center
-heart is white at rest and becomes purple with a white outline on each beat.
+icon is white at rest and becomes purple with a white outline on each beat.
+
+## Custom icon
+
+`assets/note.png` is the game's icon asset and is included in Git. Replace it
+with any transparent PNG, such as a sword or star, while keeping the filename
+`note.png`. New renders use the replacement automatically: the moving notes
+use its original colors, while the center target is white at rest and purple on
+each hit.
 
 The EXE looks for `input`, `guiding_sheets`, and `output` beside itself, in its
 working directory, or one directory above it. This means the built

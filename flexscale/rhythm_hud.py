@@ -354,7 +354,7 @@ def build_ass(duration: float, chart: list[tuple[float, int]], width: int, heigh
     # Small, unobtrusive status readout above the single track.
     header = (
         f"{{\\pos({px(10)},{track_top - px(18)})\\fs{px(11)}\\c{hex_ass_color('#ffffff')}\\bord{px(1)}\\3c{hex_ass_color('#000000')}}}"
-        "HEART BEAT"
+        "RHYTHM TRACK"
         f"{{\\pos({px(103)},{track_top - px(18)})\\fs{px(10)}\\c{hex_ass_color('#31d7ff')}\\bord{px(1)}}}"
         "FOLLOW THE RHYTHM"
     )

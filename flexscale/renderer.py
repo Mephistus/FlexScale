@@ -226,7 +226,13 @@ def main() -> int:
     )
     parser.add_argument("--phase-ms", type=float, default=0.0, help="Beat-grid phase in milliseconds")
     parser.add_argument("--no-quantize", action="store_true", help="Keep raw recorded timestamps instead of snapping to the BPM grid")
-    parser.add_argument("--heart-image", type=Path, help="Use a PNG heart sprite for the target and moving notes")
+    parser.add_argument(
+        "--icon-image",
+        "--heart-image",
+        dest="heart_image",
+        type=Path,
+        help="Use a PNG icon sprite for the target and moving notes",
+    )
     args = parser.parse_args()
 
     stem = args.video.stem
