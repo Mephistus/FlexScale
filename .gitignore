@@ -10,6 +10,9 @@ output/*
 input/*
 !input/.gitkeep
 
+guiding_sheets/*
+!guiding_sheets/.gitkeep
+
 __pycache__/
 *.py[cod]
 .build_deps/
