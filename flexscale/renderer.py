@@ -114,7 +114,7 @@ def render_with_heart_sprite(
         previous = label
 
     hit_windows = "+".join(
-        f"(gte(t\\,{hit:.4f})*lte(t\\,{min(duration, hit + 0.24):.4f}))"
+        f"(gte(t\\,{hit:.4f})*lte(t\\,{min(duration, hit + 0.12):.4f}))"
         for hit in hits
     )
     graph.append(
