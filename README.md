@@ -15,6 +15,9 @@ before they are replaced.
 Outputs are never overwritten. For example, repeated renders of `video.mp4`
 produce `video.mp4`, `video_2.mp4`, `video_3.mp4`, and so on.
 
+Every generated chart applies a 200 ms early-hit timing correction. The center
+heart is white at rest and becomes purple with a white outline on each beat.
+
 The EXE looks for `input`, `guiding_sheets`, and `output` beside itself, in its
 working directory, or one directory above it. This means the built
 `dist/FlexScale.exe` works directly with this project's folders.

@@ -10,12 +10,14 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import math
 import threading
 from pathlib import Path
 from typing import Callable
 
 from . import rhythm_hud as make_rhythm_hud
+
+
+DEFAULT_HIT_OFFSET_SECONDS = -0.200
 
 
 def load_events(sheet_path: Path) -> tuple[list[tuple[float, int]], float | None, float | None]:
@@ -54,40 +56,14 @@ def quantize_events(chart: list[tuple[float, int]], bpm: float, phase_seconds: f
     return quantized
 
 
-def burst_path(scale: float) -> str:
-    """Return eight tapered rays for the hit explosion."""
-    pieces = []
-    for index in range(8):
-        angle = index * math.pi / 4.0
-        points = []
-        for radius, delta in ((7 * scale, -0.11), (22 * scale, -0.035), (22 * scale, 0.035), (7 * scale, 0.11)):
-            current = angle + delta
-            points.append((round(math.cos(current) * radius), round(math.sin(current) * radius)))
-        pieces.append("m " + " l ".join(f"{x} {y}" for x, y in points) + " l " + f"{points[0][0]} {points[0][1]}")
-    return " ".join(pieces)
-
-
 def sprite_ass(duration: float, chart: list[tuple[float, int]], width: int, height: int) -> str:
-    """Build the HUD without glyph hearts and add animated hit bursts."""
-    scale = min(width / make_rhythm_hud.REFERENCE_WIDTH, height / make_rhythm_hud.REFERENCE_HEIGHT)
-    track_y = height - max(1, round(52 * scale))
+    """Build the HUD without the glyph hearts or the old spark animation."""
     base = make_rhythm_hud.build_ass(duration, [], width, height)
     lines = [
         line
         for line in base.splitlines()
         if not line.startswith("Dialogue: 2,") and ",Small," not in line
     ]
-    for hit in sorted({hit for hit, _ in chart}):
-        burst = (
-            f"{{\\an5\\pos({width // 2},{track_y})\\p1"
-            f"\\1c{make_rhythm_hud.hex_ass_color('#ff75d1')}\\1a&H18&\\bord0\\shad0"
-            f"\\fscx100\\fscy100\\t(0,240,\\fscx260\\fscy260\\alpha&HFF&)}}"
-            f"{burst_path(scale)}{{\\p0}}"
-        )
-        lines.append(
-            f"Dialogue: 5,{make_rhythm_hud.ts(hit)},{make_rhythm_hud.ts(min(duration, hit + 0.24))},"
-            f"HUD,,0,0,0,,{burst}"
-        )
     return "\n".join(lines) + "\n"
 
 
@@ -111,13 +87,15 @@ def render_with_heart_sprite(
     target_x = width // 2
     hits = sorted({hit for hit, _ in chart})
     note_labels = [f"n{index}" for index in range(len(hits))]
-    final_label = f"v{len(hits) + 1}"
+    outline_label = f"v{len(hits) + 1}"
+    final_label = f"v{len(hits) + 2}"
     graph = [
         f"[0:v]subtitles=filename={make_rhythm_hud.filter_path(ass_path)}[base];",
-        "[1:v]format=rgba,split=3[note_source][target_source][hit_source];",
+        "[1:v]format=rgba,split=4[note_source][target_source][outline_source][hit_source];",
         f"[note_source]scale={px(30)}:-1,split={max(1, len(hits))}" + "".join(f"[{label}]" for label in note_labels) + ";",
-        f"[target_source]scale={px(42)}:-1[target];",
-        f"[hit_source]colorchannelmixer=rr=0.75:gr=0.55:br=1.0:aa=1,scale={px(56)}:-1[hit];",
+        f"[target_source]lutrgb=r=255:g=255:b=255,scale={px(42)}:-1[target];",
+        f"[outline_source]lutrgb=r=255:g=255:b=255,scale={px(66)}:-1[hit_outline];",
+        f"[hit_source]lutrgb=r=164:g=72:b=214,scale={px(56)}:-1[hit];",
         f"[base][target]overlay=x='{target_x}-w/2':y='{track_y}-h/2':shortest=1:eof_action=pass[v0];",
     ]
 
@@ -140,7 +118,11 @@ def render_with_heart_sprite(
         for hit in hits
     )
     graph.append(
-        f"[{previous}][hit]overlay=x='{target_x}-w/2':y='{track_y}-h/2':shortest=1:eof_action=pass:"
+        f"[{previous}][hit_outline]overlay=x='{target_x}-w/2':y='{track_y}-h/2':shortest=1:eof_action=pass:"
+        f"enable='{hit_windows}'[{outline_label}];"
+    )
+    graph.append(
+        f"[{outline_label}][hit]overlay=x='{target_x}-w/2':y='{track_y}-h/2':shortest=1:eof_action=pass:"
         f"enable='{hit_windows}'[{final_label}];"
     )
 
@@ -179,7 +161,11 @@ def render_rhythm_video(
     chart, bpm, _ = load_events(sheet_path)
     if bpm:
         chart = quantize_events(chart, bpm, 0.0)
-    chart = [(hit, lane) for hit, lane in chart if 0.0 <= hit < duration - 0.25]
+    chart = [
+        (hit + DEFAULT_HIT_OFFSET_SECONDS, lane)
+        for hit, lane in chart
+        if 0.0 <= hit + DEFAULT_HIT_OFFSET_SECONDS < duration - 0.25
+    ]
     if not chart:
         raise ValueError(f"The guiding sheet contains no usable events: {sheet_path.name}")
 
@@ -230,7 +216,12 @@ def main() -> int:
     parser.add_argument("--sheet-dir", type=Path, default=Path("guiding_sheets"), help="Default guiding-sheet directory")
     parser.add_argument("--output-dir", type=Path, default=Path("output"), help="Default rendered-video directory")
     parser.add_argument("--work-dir", type=Path, default=Path(".work"), help="Directory for generated filter files")
-    parser.add_argument("--offset-ms", type=float, default=0.0, help="Shift hit times in milliseconds; negative moves hearts earlier")
+    parser.add_argument(
+        "--offset-ms",
+        type=float,
+        default=DEFAULT_HIT_OFFSET_SECONDS * 1000.0,
+        help="Shift hit times in milliseconds; defaults to -200 so hearts hit 200 ms earlier",
+    )
     parser.add_argument("--phase-ms", type=float, default=0.0, help="Beat-grid phase in milliseconds")
     parser.add_argument("--no-quantize", action="store_true", help="Keep raw recorded timestamps instead of snapping to the BPM grid")
     parser.add_argument("--heart-image", type=Path, help="Use a PNG heart sprite for the target and moving notes")
