@@ -18,6 +18,10 @@ from . import rhythm_hud as make_rhythm_hud
 
 
 DEFAULT_HIT_OFFSET_SECONDS = -0.200
+# The source clips are commonly 30 fps.  Compositing the moving sprite at a
+# higher constant rate gives the overlay position more frequent updates,
+# without changing the source video's timing or the chart's hit timestamps.
+HEART_RENDER_FPS = 60
 
 
 def load_events(sheet_path: Path) -> tuple[list[tuple[float, int]], float | None, float | None]:
@@ -91,7 +95,7 @@ def render_with_heart_sprite(
     hit_label = "v2"
     final_label = f"v{len(hits) + 2}"
     graph = [
-        f"[0:v]subtitles=filename={make_rhythm_hud.filter_path(ass_path)}[base];",
+        f"[0:v]fps={HEART_RENDER_FPS},subtitles=filename={make_rhythm_hud.filter_path(ass_path)}[base];",
         "[1:v]format=rgba,split=4[note_source][target_source][outline_source][hit_source];",
         f"[note_source]scale={px(30)}:-1,split={max(1, len(hits))}" + "".join(f"[{label}]" for label in note_labels) + ";",
         f"[target_source]lutrgb=r=255:g=255:b=255,scale={px(42)}:-1[target];",
@@ -135,7 +139,7 @@ def render_with_heart_sprite(
         [
             "ffmpeg", "-y", "-v", "error",
             "-i", str(video_path),
-            "-loop", "1", "-framerate", "30", "-i", str(heart_path),
+            "-loop", "1", "-framerate", str(HEART_RENDER_FPS), "-i", str(heart_path),
             "-filter_complex_script", str(filter_script),
             "-map", f"[{final_label}]", "-map", "0:a:0?", "-t", f"{duration:.3f}",
             "-c:v", "libx264", "-preset", "fast", "-crf", "18",
