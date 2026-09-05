@@ -291,8 +291,7 @@ class FlexScaleApp:
 
         window.title("FlexScale Rhythm Video")
         window.geometry("660x430")
-        window.minsize(620, 410)
-        window.resizable(True, True)
+        window.resizable(False, False)
         window.protocol("WM_DELETE_WINDOW", self.request_close)
 
         outer = ttk.Frame(window, padding=14)
