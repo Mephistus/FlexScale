@@ -24,6 +24,8 @@ class WindowsTaskbarProgress:
 
     _TBPF_NOPROGRESS = 0
     _TBPF_NORMAL = 2
+    _E_NOTIMPL = -2147467263
+    _GA_ROOT = 2
     _CLSID_TASKBAR_LIST = "56FDF344-FD6D-11D0-958A-006097C9A090"
     _IID_TASKBAR_LIST3 = "EA1AFB91-9E28-4B86-90E9-9E9F8A5EEFAF"
 
@@ -41,15 +43,21 @@ class WindowsTaskbarProgress:
         return cls._Guid.from_buffer_copy(raw)
 
     def __init__(self, window: tk.Tk) -> None:
+        self._window = window
         self._ole32 = None
+        self._user32 = None
         self._interface = ctypes.c_void_p()
         self._vtable = None
-        self._hwnd = ctypes.c_void_p(window.winfo_id())
+        self._hwnd = ctypes.c_void_p()
         self._com_owned = False
         self._available = False
         if sys.platform != "win32":
             return
         try:
+            self._user32 = ctypes.windll.user32
+            self._user32.GetAncestor.argtypes = [ctypes.c_void_p, ctypes.c_uint]
+            self._user32.GetAncestor.restype = ctypes.c_void_p
+            self._refresh_hwnd()
             self._ole32 = ctypes.windll.ole32
             self._ole32.CoInitializeEx.restype = ctypes.c_long
             init_result = int(self._ole32.CoInitializeEx(None, 0x2))
@@ -85,12 +93,26 @@ class WindowsTaskbarProgress:
                 self._interface,
                 ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p)),
             ).contents
-            if self._call(3, ctypes.c_long, []) < 0:  # ITaskbarList::HrInit
+            # Some current Windows shell configurations return E_NOTIMPL for
+            # the legacy HrInit call even though the ITaskbarList3 progress
+            # methods are available. Do not disable those methods for that
+            # result.
+            hr_init = self._call(3, ctypes.c_long, [])  # ITaskbarList::HrInit
+            if hr_init < 0 and hr_init != self._E_NOTIMPL:
                 self.close()
                 return
             self._available = True
         except (AttributeError, OSError, TypeError):
             self.close()
+
+    def _refresh_hwnd(self) -> None:
+        """Use the top-level Tk window associated with the taskbar button."""
+        handle = ctypes.c_void_p(self._window.winfo_id())
+        if self._user32 is not None and handle.value:
+            root_handle = self._user32.GetAncestor(handle, self._GA_ROOT)
+            self._hwnd = ctypes.c_void_p(root_handle or handle.value)
+        else:
+            self._hwnd = handle
 
     def _call(self, index: int, result_type: object, argument_types: list[object], *args: object) -> int:
         if self._vtable is None:
@@ -103,14 +125,15 @@ class WindowsTaskbarProgress:
             return
         value = max(0, min(1000, round(fraction * 1000)))
         try:
-            self._call(
+            self._refresh_hwnd()
+            state_result = self._call(
                 10,
                 ctypes.c_long,
                 [ctypes.c_void_p, ctypes.c_uint],
                 self._hwnd,
                 self._TBPF_NORMAL,
             )
-            self._call(
+            value_result = self._call(
                 9,
                 ctypes.c_long,
                 [ctypes.c_void_p, ctypes.c_ulonglong, ctypes.c_ulonglong],
@@ -118,6 +141,8 @@ class WindowsTaskbarProgress:
                 value,
                 1000,
             )
+            if state_result < 0 or value_result < 0:
+                return
         except (OSError, TypeError):
             self._available = False
 
@@ -125,13 +150,16 @@ class WindowsTaskbarProgress:
         if not self._available:
             return
         try:
-            self._call(
+            self._refresh_hwnd()
+            result = self._call(
                 10,
                 ctypes.c_long,
                 [ctypes.c_void_p, ctypes.c_uint],
                 self._hwnd,
                 self._TBPF_NOPROGRESS,
             )
+            if result < 0:
+                return
         except (OSError, TypeError):
             self._available = False
 
