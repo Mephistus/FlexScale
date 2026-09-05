@@ -276,6 +276,12 @@ class FlexScaleApp:
     def __init__(self, window: tk.Tk) -> None:
         self.window = window
         self.root_dir = application_root()
+        icon_path = bundled_asset("assets/icon.ico", self.root_dir)
+        if icon_path is not None and sys.platform == "win32":
+            try:
+                window.iconbitmap(default=str(icon_path))
+            except tk.TclError:
+                pass
         self.events: queue.Queue[tuple[str, object]] = queue.Queue()
         self.cancel_event = threading.Event()
         self.worker: threading.Thread | None = None

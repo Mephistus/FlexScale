@@ -4,7 +4,7 @@
 assets/*
 !assets/.gitkeep
 !assets/note.png
-!assets/icon.jfif
+!assets/icon.png
 !assets/icon.ico
 
 output/*

@@ -31,7 +31,7 @@ changing when they reach the target.
 
 ## Custom icon
 
-`assets/icon.jfif` is the Windows application icon source. The build uses the
+`assets/icon.png` is the Windows application icon source. The build uses the
 generated `assets/icon.ico` file, so regenerate that file after replacing the
 source image before rebuilding. `assets/note.png` remains the in-game icon
 asset used by rendered videos.

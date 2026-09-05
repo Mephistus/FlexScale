@@ -8,6 +8,8 @@ $ffprobe = (Get-Command ffprobe -ErrorAction Stop).Source
 $ffplay = (Get-Command ffplay -ErrorAction Stop).Source
 $buildDependencies = Join-Path $projectDir ".build_deps"
 $icon = Join-Path $projectDir "assets\icon.ico"
+$pythonRoot = (python -c "import sys; print(sys.prefix)").Trim()
+$hooks = Join-Path $projectDir "packaging\hooks"
 
 if (-not (Test-Path $icon)) {
     throw "Missing executable icon: $icon"
@@ -27,9 +29,19 @@ try {
         --windowed `
         --name FlexScale `
         --icon $icon `
+        --additional-hooks-dir $hooks `
+        --hidden-import tkinter `
+        --hidden-import tkinter.ttk `
+        --hidden-import tkinter.messagebox `
+        --add-binary "$pythonRoot\DLLs\_tkinter.pyd;." `
+        --add-binary "$pythonRoot\DLLs\tcl86t.dll;." `
+        --add-binary "$pythonRoot\DLLs\tk86t.dll;." `
+        --add-data "$pythonRoot\tcl\tcl8.6;_tcl_data" `
+        --add-data "$pythonRoot\tcl\tk8.6;_tk_data" `
         --add-binary "$ffmpeg;." `
         --add-binary "$ffprobe;." `
         --add-binary "$ffplay;." `
+        --add-data "assets/icon.ico;assets" `
         --add-data "assets/note.png;assets" `
         main.py
     if ($LASTEXITCODE -ne 0) {
