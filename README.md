@@ -31,11 +31,10 @@ changing when they reach the target.
 
 ## Custom icon
 
-`assets/note.png` is the game's icon asset and is included in Git. Replace it
-with any transparent PNG, such as a sword or star, while keeping the filename
-`note.png`. New renders use the replacement automatically: the moving notes
-use its original colors, while the center target is white at rest and purple on
-each hit.
+`assets/icon.jfif` is the Windows application icon source. The build uses the
+generated `assets/icon.ico` file, so regenerate that file after replacing the
+source image before rebuilding. `assets/note.png` remains the in-game icon
+asset used by rendered videos.
 
 The EXE looks for `input`, `guiding_sheets`, and `output` beside itself, in its
 working directory, or one directory above it. This means the built

@@ -7,6 +7,11 @@ $ffmpeg = (Get-Command ffmpeg -ErrorAction Stop).Source
 $ffprobe = (Get-Command ffprobe -ErrorAction Stop).Source
 $ffplay = (Get-Command ffplay -ErrorAction Stop).Source
 $buildDependencies = Join-Path $projectDir ".build_deps"
+$icon = Join-Path $projectDir "assets\icon.ico"
+
+if (-not (Test-Path $icon)) {
+    throw "Missing executable icon: $icon"
+}
 
 if (-not (Test-Path (Join-Path $buildDependencies "PyInstaller"))) {
     python -m pip install --target $buildDependencies pyinstaller
@@ -21,6 +26,7 @@ try {
         --onefile `
         --windowed `
         --name FlexScale `
+        --icon $icon `
         --add-binary "$ffmpeg;." `
         --add-binary "$ffprobe;." `
         --add-binary "$ffplay;." `
