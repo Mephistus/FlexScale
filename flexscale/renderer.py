@@ -93,7 +93,10 @@ def render_with_heart_sprite(
     scale = min(width / make_rhythm_hud.REFERENCE_WIDTH, height / make_rhythm_hud.REFERENCE_HEIGHT)
     px = lambda value: max(1, round(value * scale))
     track_y = height - px(52)
-    target_x = width // 2
+    # Keep the target at the leading edge of the track so notes travel across
+    # the full frame instead of only the right half.
+    # Leave a clear margin even around the larger hit outline.
+    target_x = min(px(make_rhythm_hud.TARGET_CENTER_X), width - px(34))
     hits = sorted({hit for hit, _ in chart})
     note_labels = [f"n{index}" for index in range(len(hits))]
     outline_label = "v1"

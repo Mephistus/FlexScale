@@ -26,6 +26,7 @@ from typing import Callable
 LANE_COLORS = ["#31d7ff", "#ffcf4a", "#ff65c7", "#75f58e"]
 REFERENCE_WIDTH = 624
 REFERENCE_HEIGHT = 352
+TARGET_CENTER_X = 64
 LANE_GLYPHS = ["◀", "▼", "▲", "▶"]
 
 
@@ -349,10 +350,11 @@ def build_ass(
     scale = min(width / REFERENCE_WIDTH, height / REFERENCE_HEIGHT)
     px = lambda value: max(1, round(value * scale))
     events = ass_header(width, height, scale)
-    # One centered Taiko-style track.  The target is fixed on the left and
-    # every note travels horizontally from the right into that one target.
+    # One Taiko-style track. The target is fixed at the far left and every
+    # note travels horizontally from the right across the full frame.
     track_y = height - px(52)
-    target_x = width // 2
+    # Leave enough room for the 66 px hit outline around the target.
+    target_x = min(px(TARGET_CENTER_X), width - px(34))
     track_top = track_y - px(28)
     target_gap = px(25)
     events.append(f"Dialogue: 0,{ts(0)},{ts(duration)},HUD,,0,0,0,,{rect(0, track_top, width, px(56), '#06111c', 112)}")
