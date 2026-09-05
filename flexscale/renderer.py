@@ -123,7 +123,17 @@ def render_with_heart_sprite(
         travel = 3.20 - 1.00 * progress
         start = max(0.0, hit - travel)
         label = f"v{index + 3}"
-        x_expression = f"{width}+{px(22)}-w/2-({width}+{px(22)}-{target_x})*(t-{start:.4f})/{travel:.4f}"
+        # The first note may start before the video and is therefore clipped
+        # to t=0. Use the remaining visible time as the motion duration so
+        # that it still reaches the target exactly at its hit time.
+        visible_duration = hit - start
+        if visible_duration > 0:
+            x_expression = (
+                f"{width}+{px(22)}-w/2-({width}+{px(22)}-{target_x})*"
+                f"(t-{start:.4f})/{visible_duration:.4f}"
+            )
+        else:
+            x_expression = f"{target_x}-w/2"
         graph.append(
             f"[{previous}][{note_labels[index]}]overlay="
             f"x='{x_expression}':y='{track_y}-h/2':shortest=1:eof_action=pass:"

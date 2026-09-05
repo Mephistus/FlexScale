@@ -379,8 +379,12 @@ def build_ass(duration: float, chart: list[tuple[float, int]], width: int, heigh
         travel = 3.20 - 1.00 * progress
         start = max(0.0, hit - travel)
         end = min(duration, hit + 0.10)
+        # If the normal travel begins before the video, the note has less
+        # than the nominal travel time available. Adjust the move duration so
+        # the first visible note still reaches the target at its hit time.
+        visible_duration = hit - start
         note = (
-            f"{{\\move({width + px(22)},{track_y},{target_x},{track_y},0,{int(travel * 1000)})"
+            f"{{\\move({width + px(22)},{track_y},{target_x},{track_y},0,{int(visible_duration * 1000)})"
             f"\\c{hex_ass_color('#ffcf4a')}\\3c{hex_ass_color('#ffffff')}\\bord{px(2)}\\shad{px(1)}\\blur0.4}}♥"
         )
         events.append(f"Dialogue: 4,{ts(start)},{ts(end)},Note,,0,0,0,,{note}")
