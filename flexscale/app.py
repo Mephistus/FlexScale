@@ -328,7 +328,7 @@ class FlexScaleApp:
         self.offset_entry.pack(side="left", padx=(8, 8))
         ttk.Label(
             offset_row,
-            text="Instruction: positive = delay notes; negative = start notes earlier",
+            text="Positive = delay notes; negative = start notes earlier",
         ).pack(side="left")
 
         speed_row = ttk.Frame(generate_tab)
