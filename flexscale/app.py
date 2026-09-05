@@ -303,6 +303,14 @@ class FlexScaleApp:
             text="Instruction: positive = delay notes; negative = start notes earlier",
         ).pack(side="left")
 
+        speed_row = ttk.Frame(generate_tab)
+        speed_row.pack(fill="x", pady=(8, 0))
+        ttk.Label(speed_row, text="Heart speed (1x, 2x, 3x...):").pack(side="left")
+        self.note_speed = tk.StringVar(value="1")
+        self.note_speed_entry = ttk.Entry(speed_row, textvariable=self.note_speed, width=10)
+        self.note_speed_entry.pack(side="left", padx=(8, 8))
+        ttk.Label(speed_row, text="Use a positive number; decimals are allowed").pack(side="left")
+
         self.progress_value = tk.DoubleVar(value=0)
         self.progress = ttk.Progressbar(generate_tab, variable=self.progress_value, maximum=100)
         self.progress.pack(fill="x", pady=(20, 5))
@@ -376,6 +384,7 @@ class FlexScaleApp:
         self.entry.configure(state=state)
         self.ok_button.configure(state=state)
         self.offset_entry.configure(state=state)
+        self.note_speed_entry.configure(state=state)
         self.cancel_button.configure(state="normal" if running else "disabled")
         if running:
             self.taskbar_progress.set_progress(0.0)
@@ -405,6 +414,18 @@ class FlexScaleApp:
                 parent=self.window,
             )
             return
+        speed_text = self.note_speed.get().strip()
+        try:
+            note_speed = float(speed_text) if speed_text else renderer.DEFAULT_NOTE_SPEED
+            if not math.isfinite(note_speed) or note_speed <= 0:
+                raise ValueError
+        except ValueError:
+            messagebox.showerror(
+                "Invalid heart speed",
+                "Heart speed must be a positive number, for example 1, 1.5, or 2.3.",
+                parent=self.window,
+            )
+            return
         offset_seconds = renderer.DEFAULT_HIT_OFFSET_SECONDS + offset_adjustment_ms / 1000.0
         try:
             video_path = find_video(self.root_dir / "input", name)
@@ -421,7 +442,7 @@ class FlexScaleApp:
         self.set_running(True)
         self.worker = threading.Thread(
             target=self.render_worker,
-            args=(video_path, sheet_path, output_path, lock_path, offset_seconds),
+            args=(video_path, sheet_path, output_path, lock_path, offset_seconds, note_speed),
             daemon=True,
         )
         self.worker.start()
@@ -433,6 +454,7 @@ class FlexScaleApp:
         output_path: Path,
         lock_path: Path,
         offset_seconds: float,
+        note_speed: float,
     ) -> None:
         temporary_path = output_path.parent / f".{output_path.stem}.{uuid.uuid4().hex}.part.mp4"
         try:
@@ -449,6 +471,7 @@ class FlexScaleApp:
                 work_dir=self.root_dir / ".work",
                 heart_path=heart_path,
                 offset_seconds=offset_seconds,
+                note_speed=note_speed,
                 progress_callback=report,
                 cancel_event=self.cancel_event,
             )

@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import math
 import threading
 from pathlib import Path
 from typing import Callable
@@ -18,6 +19,7 @@ from . import rhythm_hud as make_rhythm_hud
 
 
 DEFAULT_HIT_OFFSET_SECONDS = -0.200
+DEFAULT_NOTE_SPEED = 1.0
 # The source clips are commonly 30 fps.  Compositing the moving sprite at a
 # higher constant rate gives the overlay position more frequent updates,
 # without changing the source video's timing or the chart's hit timestamps.
@@ -83,8 +85,11 @@ def render_with_heart_sprite(
     filter_script: Path,
     progress_callback: Callable[[float], None] | None = None,
     cancel_event: threading.Event | None = None,
+    note_speed: float = DEFAULT_NOTE_SPEED,
 ) -> None:
     """Render the HUD and animate the supplied raster heart as every note."""
+    if not math.isfinite(note_speed) or note_speed <= 0:
+        raise ValueError("note_speed must be a positive number")
     scale = min(width / make_rhythm_hud.REFERENCE_WIDTH, height / make_rhythm_hud.REFERENCE_HEIGHT)
     px = lambda value: max(1, round(value * scale))
     track_y = height - px(52)
@@ -120,7 +125,7 @@ def render_with_heart_sprite(
     previous = hit_label
     for index, hit in enumerate(hits):
         progress = hit / duration
-        travel = 3.20 - 1.00 * progress
+        travel = (3.20 - 1.00 * progress) / note_speed
         start = max(0.0, hit - travel)
         label = f"v{index + 3}"
         # The first note may start before the video and is therefore clipped
@@ -170,8 +175,11 @@ def render_rhythm_video(
     progress_callback: Callable[[float], None] | None = None,
     cancel_event: threading.Event | None = None,
     offset_seconds: float = DEFAULT_HIT_OFFSET_SECONDS,
+    note_speed: float = DEFAULT_NOTE_SPEED,
 ) -> None:
     """Render one matched video/sheet pair to an explicitly selected output."""
+    if not math.isfinite(note_speed) or note_speed <= 0:
+        raise ValueError("note_speed must be a positive number")
     if cancel_event is not None and cancel_event.is_set():
         raise make_rhythm_hud.RenderCancelled()
     duration, width, height = make_rhythm_hud.probe_video(video_path)
@@ -192,7 +200,7 @@ def render_rhythm_video(
     ass_path.write_text(
         sprite_ass(duration, chart, width, height)
         if heart_path
-        else make_rhythm_hud.build_ass(duration, chart, width, height),
+        else make_rhythm_hud.build_ass(duration, chart, width, height, note_speed),
         encoding="utf-8",
     )
     if cancel_event is not None and cancel_event.is_set():
@@ -210,6 +218,7 @@ def render_rhythm_video(
             filter_script,
             progress_callback,
             cancel_event,
+            note_speed,
         )
     else:
         command = [
@@ -239,6 +248,12 @@ def main() -> int:
         default=DEFAULT_HIT_OFFSET_SECONDS * 1000.0,
         help="Shift hit times in milliseconds; defaults to -200 so hearts hit 200 ms earlier",
     )
+    parser.add_argument(
+        "--note-speed",
+        type=float,
+        default=DEFAULT_NOTE_SPEED,
+        help="Heart travel speed multiplier; 1 is normal, 2 is twice as fast",
+    )
     parser.add_argument("--phase-ms", type=float, default=0.0, help="Beat-grid phase in milliseconds")
     parser.add_argument("--no-quantize", action="store_true", help="Keep raw recorded timestamps instead of snapping to the BPM grid")
     parser.add_argument(
@@ -265,6 +280,8 @@ def main() -> int:
             parser.error(f"guiding sheet not found: {sheet_path}")
     if args.heart_image and not args.heart_image.is_file():
         parser.error(f"heart image not found: {args.heart_image}")
+    if not math.isfinite(args.note_speed) or args.note_speed <= 0:
+        parser.error("--note-speed must be a positive number")
 
     duration, width, height = make_rhythm_hud.probe_video(args.video)
     chart, bpm, recorded_duration = load_events(sheet_path)
@@ -278,7 +295,7 @@ def main() -> int:
     ass_path.write_text(
         sprite_ass(duration, chart, width, height)
         if args.heart_image
-        else make_rhythm_hud.build_ass(duration, chart, width, height),
+        else make_rhythm_hud.build_ass(duration, chart, width, height, args.note_speed),
         encoding="utf-8",
     )
     print(f"video_duration={duration:.3f}s sheet_duration={recorded_duration}")
@@ -295,6 +312,7 @@ def main() -> int:
             width,
             height,
             filter_script,
+            note_speed=args.note_speed,
         )
     else:
         make_rhythm_hud.render(args.video, ass_path, output_path)

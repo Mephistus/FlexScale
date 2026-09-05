@@ -337,7 +337,15 @@ def ass_header(width: int, height: int, scale: float) -> list[str]:
     ]
 
 
-def build_ass(duration: float, chart: list[tuple[float, int]], width: int, height: int) -> str:
+def build_ass(
+    duration: float,
+    chart: list[tuple[float, int]],
+    width: int,
+    height: int,
+    note_speed: float = 1.0,
+) -> str:
+    if not math.isfinite(note_speed) or note_speed <= 0:
+        raise ValueError("note_speed must be a positive number")
     scale = min(width / REFERENCE_WIDTH, height / REFERENCE_HEIGHT)
     px = lambda value: max(1, round(value * scale))
     events = ass_header(width, height, scale)
@@ -376,7 +384,7 @@ def build_ass(duration: float, chart: list[tuple[float, int]], width: int, heigh
         progress = hit / duration
         # Longer travel times make the notes easier to visually follow while
         # the chart itself still becomes denser as the video progresses.
-        travel = 3.20 - 1.00 * progress
+        travel = (3.20 - 1.00 * progress) / note_speed
         start = max(0.0, hit - travel)
         end = min(duration, hit + 0.10)
         # If the normal travel begins before the video, the note has less

@@ -24,6 +24,11 @@ Every generated chart applies a 200 ms early-hit timing correction. The
 values make them start earlier. The center icon is white at rest and becomes
 purple with a white outline on each beat.
 
+The **Generate Video** tab also includes a heart speed multiplier. Enter `1`
+for normal speed, `2` for twice as fast, or any other positive decimal such as
+`1.5` or `2.3`. This changes how quickly hearts travel along the track without
+changing when they reach the target.
+
 ## Custom icon
 
 `assets/note.png` is the game's icon asset and is included in Git. Replace it
